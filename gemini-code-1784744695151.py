@@ -30,7 +30,7 @@ def generate_insights(text):
     Text: {text[:75000]}
     """
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         contents=prompt
     )
     return response.text
@@ -44,7 +44,7 @@ def generate_slide_content(text):
     Text: {text[:75000]}
     """
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         contents=prompt,
         config={'response_mime_type': 'application/json'}
     )
