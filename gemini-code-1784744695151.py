@@ -1,15 +1,16 @@
 import streamlit as st
 import PyPDF2
-from google import genai
+import google.generativeai as genai
 from pptx import Presentation
 from pptx.util import Pt
 import json
 import io
 import os
 
-# Initialize Gemini Client
+# Configure Gemini API
 api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key) if api_key else None
+if api_key:
+    genai.configure(api_key=api_key)
 
 def extract_text_from_pdfs(pdf_files):
     text = ""
@@ -21,6 +22,7 @@ def extract_text_from_pdfs(pdf_files):
     return text
 
 def generate_insights(text):
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
     Analyze the following text extracted from multiple documents. 
     1. Identify common themes, patterns, and key data points.
@@ -29,13 +31,14 @@ def generate_insights(text):
     
     Text: {text[:75000]}
     """
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt
-    )
+    response = model.generate_content(prompt)
     return response.text
 
 def generate_slide_content(text):
+    model = genai.GenerativeModel(
+        "gemini-1.5-flash",
+        generation_config={"response_mime_type": "application/json"}
+    )
     prompt = f"""
     Based on the following text, create an outline for a 15-slide presentation.
     Return ONLY a JSON object with a "slides" key containing an array of 15 objects. 
@@ -43,11 +46,7 @@ def generate_slide_content(text):
 
     Text: {text[:75000]}
     """
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt,
-        config={'response_mime_type': 'application/json'}
-    )
+    response = model.generate_content(prompt)
     return json.loads(response.text)
 
 def create_ppt(slide_data):
@@ -84,9 +83,13 @@ if uploaded_files:
                 extracted_text = extract_text_from_pdfs(uploaded_files)
             
             with st.spinner("Analyzing themes and generating briefing note..."):
-                insights = generate_insights(extracted_text)
-                st.subheader("Briefing Note & Action Items")
-                st.write(insights)
+                try:
+                    insights = generate_insights(extracted_text)
+                    st.subheader("Briefing Note & Action Items")
+                    st.write(insights)
+                except Exception as e:
+                    st.error(f"Error generating insights: {e}")
+                    st.stop()
                 
             with st.spinner("Generating 15-page Presentation..."):
                 try:
