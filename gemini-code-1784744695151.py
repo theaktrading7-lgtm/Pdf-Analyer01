@@ -12,6 +12,21 @@ api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
 
+def get_best_model_name():
+    """Automatically finds an active, working model for your API key."""
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                if 'flash' in m.name:
+                    return m.name
+        # Fallback if no flash model is found
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                return m.name
+    except Exception:
+        pass
+    return "models/gemini-1.5-flash"
+
 def extract_text_from_pdfs(pdf_files):
     text = ""
     for pdf in pdf_files:
@@ -21,8 +36,8 @@ def extract_text_from_pdfs(pdf_files):
                 text += page.extract_text() + "\n"
     return text
 
-def generate_insights(text):
-    model = genai.GenerativeModel("gemini-flash")
+def generate_insights(text, model_name):
+    model = genai.GenerativeModel(model_name)
     prompt = f"""
     Analyze the following text extracted from multiple documents. 
     1. Identify common themes, patterns, and key data points.
@@ -34,9 +49,9 @@ def generate_insights(text):
     response = model.generate_content(prompt)
     return response.text
 
-def generate_slide_content(text):
+def generate_slide_content(text, model_name):
     model = genai.GenerativeModel(
-        "gemini-flash",
+        model_name,
         generation_config={"response_mime_type": "application/json"}
     )
     prompt = f"""
@@ -79,12 +94,15 @@ if uploaded_files:
         if not api_key:
             st.error("GEMINI_API_KEY is missing! Please set it in Streamlit Secrets.")
         else:
+            with st.spinner("Connecting to Gemini AI & detecting best model..."):
+                active_model = get_best_model_name()
+                
             with st.spinner("Extracting text from PDFs..."):
                 extracted_text = extract_text_from_pdfs(uploaded_files)
             
             with st.spinner("Analyzing themes and generating briefing note..."):
                 try:
-                    insights = generate_insights(extracted_text)
+                    insights = generate_insights(extracted_text, active_model)
                     st.subheader("Briefing Note & Action Items")
                     st.write(insights)
                 except Exception as e:
@@ -93,7 +111,7 @@ if uploaded_files:
                 
             with st.spinner("Generating 15-page Presentation..."):
                 try:
-                    slide_json = generate_slide_content(extracted_text)
+                    slide_json = generate_slide_content(extracted_text, active_model)
                     ppt_file = create_ppt(slide_json)
                     
                     st.success("Analysis and Presentation Generation Complete!")
