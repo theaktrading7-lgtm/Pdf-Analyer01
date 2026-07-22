@@ -1,16 +1,15 @@
 import streamlit as st
 import PyPDF2
-import google.generativeai as genai
+from google import genai
 from pptx import Presentation
 from pptx.util import Pt
 import json
 import io
 import os
 
-# Configure Gemini API
+# Initialize Gemini Client using new Google SDK
 api_key = os.environ.get("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
+client = genai.Client(api_key=api_key) if api_key else None
 
 def extract_text_from_pdfs(pdf_files):
     text = ""
@@ -22,7 +21,6 @@ def extract_text_from_pdfs(pdf_files):
     return text
 
 def generate_insights(text):
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
     prompt = f"""
     Analyze the following text extracted from multiple documents. 
     1. Identify common themes, patterns, and key data points.
@@ -31,14 +29,13 @@ def generate_insights(text):
     
     Text: {text[:75000]}
     """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
     return response.text
 
 def generate_slide_content(text):
-    model = genai.GenerativeModel(
-        "gemini-1.5-flash-latest",
-        generation_config={"response_mime_type": "application/json"}
-    )
     prompt = f"""
     Based on the following text, create an outline for a 15-slide presentation.
     Return ONLY a JSON object with a "slides" key containing an array of 15 objects. 
@@ -46,7 +43,11 @@ def generate_slide_content(text):
 
     Text: {text[:75000]}
     """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config={'response_mime_type': 'application/json'}
+    )
     return json.loads(response.text)
 
 def create_ppt(slide_data):
