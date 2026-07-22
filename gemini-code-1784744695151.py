@@ -22,7 +22,7 @@ def extract_text_from_pdfs(pdf_files):
     return text
 
 def generate_insights(text):
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
     Analyze the following text extracted from multiple documents. 
     1. Identify common themes, patterns, and key data points.
@@ -36,7 +36,7 @@ def generate_insights(text):
 
 def generate_slide_content(text):
     model = genai.GenerativeModel(
-        "gemini-2.5-flash",
+        "gemini-1.5-flash",
         generation_config={"response_mime_type": "application/json"}
     )
     prompt = f"""
